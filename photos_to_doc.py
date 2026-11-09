@@ -5,6 +5,8 @@
 Примеры:
     python photos_to_doc.py                                  # картинки из текущей папки -> <папка>.pptx
     python photos_to_doc.py ~/Pictures/trip                  # папка -> trip.pptx в текущей папке
+    python photos_to_doc.py ~/Pictures/trip -s                       # сохранить рядом с фото
+    python photos_to_doc.py ~/Pictures/trip -s -o deck.pptx          # своё имя, но рядом с фото
     python photos_to_doc.py ~/Pictures/trip -o ~/out/trip.pdf        # формат по расширению
     python photos_to_doc.py ~/Pictures/trip -t pdf                   # формат явно
     python photos_to_doc.py a.png b.png c.jpg -o slides.pptx         # список файлов
@@ -85,6 +87,8 @@ def main():
     ap.add_argument("inputs", nargs="*", default=["."],
                     help="папка(и) и/или файлы (по умолчанию: текущая папка)")
     ap.add_argument("-o", "--output", help="выходной файл (по умолчанию: <имя папки>.pptx)")
+    ap.add_argument("-s", "--here", action="store_true",
+                    help="сохранить рядом с фото (в папке с исходными картинками)")
     ap.add_argument("-t", "--type", choices=["pptx", "pdf"],
                     help="формат; если не указан — берётся из расширения -o, иначе pptx")
     ap.add_argument("-e", "--ext", nargs="+",
@@ -105,15 +109,22 @@ def main():
         fmt = suffix if suffix in ("pptx", "pdf") else None
     fmt = fmt or "pptx"
 
+    # папка с исходниками (первая папка или папка первого файла)
+    first = Path(args.inputs[0]).expanduser().resolve()
+    src_dir = first if first.is_dir() else first.parent
+
     # выходной путь
     if args.output:
         out = Path(args.output).expanduser()
         if out.suffix.lower() != f".{fmt}":
             out = out.with_name(out.name + f".{fmt}") if not out.suffix else out.with_suffix(f".{fmt}")
+        # -s: если в -o указано только имя без папки, кладём рядом с фото
+        if args.here and out.parent == Path("."):
+            out = src_dir / out.name
     else:
-        first = Path(args.inputs[0]).expanduser().resolve()
         name = first.name if first.is_dir() else "output"
-        out = Path.cwd() / f"{name}.{fmt}"
+        base = src_dir if args.here else Path.cwd()
+        out = base / f"{name}.{fmt}"
 
     out.parent.mkdir(parents=True, exist_ok=True)
 
